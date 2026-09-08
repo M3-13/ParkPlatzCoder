@@ -22,6 +22,21 @@ body {
   margin: 0 0 16px;
 }
 
+#search-input {
+  width: 100%;
+  font-size: 15px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  outline: none;
+}
+
+#search-input:focus {
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+}
+
 .empty-state {
   padding: 32px 16px;
   text-align: center;
@@ -29,4 +44,131 @@ body {
   border: 1px dashed #d1d5db;
   border-radius: 8px;
   background: #fff;
+}
+
+.repo-group {
+  margin-bottom: 20px;
+}
+
+.repo-heading {
+  font-size: 13px;
+  font-weight: 600;
+  color: #4b5563;
+  margin: 0 0 8px;
+  padding: 0 4px;
+  word-break: break-all;
+}
+
+.note-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+}
+
+.note-card.note-done {
+  opacity: 0.6;
+}
+
+.note-card.note-done .note-text {
+  text-decoration: line-through;
+  color: #6b7280;
+}
+
+.note-text {
+  margin: 0 0 8px;
+  font-size: 15px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.note-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-size: 12px;
+  color: #6b7280;
+  margin-bottom: 6px;
+}
+
+.note-meta span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.note-repo {
+  font-weight: 600;
+  color: #4b5563;
+}
+
+.note-branch::before {
+  content: "branch ";
+  opacity: 0.7;
+}
+
+.note-commit::before {
+  content: "commit ";
+  opacity: 0.7;
+}
+
+.note-commit {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.note-files {
+  list-style: none;
+  margin: 4px 0 8px;
+  padding: 0;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.note-file {
+  padding-left: 14px;
+  position: relative;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.note-file::before {
+  content: "•";
+  position: absolute;
+  left: 2px;
+  color: #9ca3af;
+}
+
+.note-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.note-btn {
+  font-size: 13px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  background: #f3f4f6;
+  color: #111827;
+}
+
+.note-btn:hover {
+  background: #e5e7eb;
+}
+
+.note-toggle {
+  border-color: #d1d5db;
+}
+
+.note-delete {
+  color: #b91c1c;
+}
+
+.note-delete:hover {
+  background: #fee2e2;
 }

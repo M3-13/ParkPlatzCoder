@@ -9,7 +9,16 @@
   <body>
     <main class="list-shell">
       <h1 class="list-title">Zettel</h1>
-      <p class="empty-state">Keine Zettel</p>
+      <input
+        id="search-input"
+        type="search"
+        autocomplete="off"
+        placeholder="Zettel durchsuchen …"
+        aria-label="Zettel durchsuchen"
+      />
+      <div id="note-list" class="note-list">
+        <p class="empty-state">Keine Zettel</p>
+      </div>
     </main>
     <script src="list.js"></script>
   </body>
