@@ -7,7 +7,7 @@
       "stack": "rust",
       "kind": "cli",
       "install": [["cargo", "build"]],
-      "build": [["cargo", "build", "--release"]],
+      "build": [["cargo", "test"], ["cargo", "build", "--release"]],
       "start": ["cargo", "run", "-p", "parkplatzcoder"]
     }
   ]
