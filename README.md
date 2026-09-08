@@ -32,10 +32,16 @@ cargo build
 ## Ausführen (Entwicklung)
 
 ```bash
-cargo run
+cargo run -p parkplatzcoder
 ```
 
 Die App startet im Hintergrund und zeigt ein Tray-Icon.
+
+## Testen
+
+```bash
+cargo test
+```
 
 ## Produktion bauen
 
