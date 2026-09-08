@@ -10,10 +10,17 @@ pub enum GitError {
     Git(#[from] git2::Error),
     #[error("repository is bare and has no working directory")]
     BareRepository,
-    #[error("failed to read filesystem path: {0}")]
-    Io(#[from] std::io::Error),
-    #[error("window manager lookup failed: {0}")]
-    WindowManager(String),
+}
+
+/// Result of resolving the currently active X11 window down to a repository.
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+enum ActiveWindow {
+    /// An active window was found and its working directory lies in a repo.
+    Repo(String),
+    /// An active window was found, but its working directory is not in a repo.
+    NoRepo,
+    /// No active window could be resolved (or X11 is unavailable / failed).
+    NoWindow,
 }
 
 /// Returns the absolute path of the enclosing repository, if any.
@@ -21,15 +28,25 @@ pub enum GitError {
 /// Detection order:
 /// 1. The repository of the currently active window (X11 `_NET_ACTIVE_WINDOW`
 ///    -> `_NET_WM_PID` -> `/proc/<pid>/cwd` -> nearest `.git` ancestor).
-/// 2. If no active window can be resolved (or the platform has no X11), the
+///    If the active window exists but is not in a repo, the result is `None`.
+/// 2. Only if no active window exists (or X11 is unavailable), fall back to the
 ///    last repository that was successfully detected this process.
 /// 3. Otherwise `None`.
 pub fn detect_repo() -> Result<Option<String>, GitError> {
-    if let Some(path) = detect_from_active_window()? {
-        remember_repo(&path);
-        return Ok(Some(path));
+    Ok(resolve_detection(detect_from_active_window()))
+}
+
+/// Map the resolved active window onto the final answer, updating the
+/// "last known repo" cache only when a real repository was detected.
+fn resolve_detection(detected: ActiveWindow) -> Option<String> {
+    match detected {
+        ActiveWindow::Repo(path) => {
+            remember_repo(&path);
+            Some(path)
+        }
+        ActiveWindow::NoRepo => None,
+        ActiveWindow::NoWindow => read_remembered_repo(),
     }
-    Ok(read_remembered_repo())
 }
 
 fn last_known_repo() -> &'static Mutex<Option<String>> {
@@ -67,58 +84,73 @@ fn find_repo_ancestor(start: &Path) -> Option<String> {
 }
 
 #[cfg(target_os = "linux")]
-fn detect_from_active_window() -> Result<Option<String>, GitError> {
+fn detect_from_active_window() -> ActiveWindow {
     use x11rb::connection::Connection;
     use x11rb::protocol::xproto::{AtomEnum, ConnectionExt, Window};
 
-    let (conn, screen_num) =
-        x11rb::connect(None).map_err(|e| GitError::WindowManager(e.to_string()))?;
+    let (conn, screen_num) = match x11rb::connect(None) {
+        Ok(c) => c,
+        Err(_) => return ActiveWindow::NoWindow,
+    };
     let screen = &conn.setup().roots[screen_num];
     let root = screen.root;
 
-    let net_active = conn
+    let net_active = match conn
         .intern_atom(false, b"_NET_ACTIVE_WINDOW")
-        .map_err(|e| GitError::WindowManager(e.to_string()))?
-        .reply()
-        .map_err(|e| GitError::WindowManager(e.to_string()))?
-        .atom;
+        .and_then(|cookie| cookie.reply())
+    {
+        Ok(reply) => reply.atom,
+        Err(_) => return ActiveWindow::NoWindow,
+    };
 
-    let net_wm_pid = conn
+    let net_wm_pid = match conn
         .intern_atom(false, b"_NET_WM_PID")
-        .map_err(|e| GitError::WindowManager(e.to_string()))?
-        .reply()
-        .map_err(|e| GitError::WindowManager(e.to_string()))?
-        .atom;
+        .and_then(|cookie| cookie.reply())
+    {
+        Ok(reply) => reply.atom,
+        Err(_) => return ActiveWindow::NoWindow,
+    };
 
-    let active = conn
+    let active = match conn
         .get_property(false, root, net_active, AtomEnum::WINDOW, 0, 1)
-        .map_err(|e| GitError::WindowManager(e.to_string()))?
-        .reply()
-        .map_err(|e| GitError::WindowManager(e.to_string()))?;
+        .and_then(|cookie| cookie.reply())
+    {
+        Ok(reply) => reply,
+        Err(_) => return ActiveWindow::NoWindow,
+    };
 
     let window = match active.value32().and_then(|v| v.first()) {
         Some(&w) if w != 0 => Window::from(w),
-        _ => return Ok(None),
+        _ => return ActiveWindow::NoWindow,
     };
 
-    let pid_prop = conn
+    let pid_prop = match conn
         .get_property(false, window, net_wm_pid, AtomEnum::CARDINAL, 0, 1)
-        .map_err(|e| GitError::WindowManager(e.to_string()))?
-        .reply()
-        .map_err(|e| GitError::WindowManager(e.to_string()))?;
+        .and_then(|cookie| cookie.reply())
+    {
+        Ok(reply) => reply,
+        Err(_) => return ActiveWindow::NoRepo,
+    };
 
     let pid = match pid_prop.value32().and_then(|v| v.first()) {
         Some(&p) => p,
-        None => return Ok(None),
+        None => return ActiveWindow::NoRepo,
     };
 
-    let cwd = std::fs::read_link(format!("/proc/{}/cwd", pid))?;
-    Ok(find_repo_ancestor(&cwd))
+    let cwd = match std::fs::read_link(format!("/proc/{}/cwd", pid)) {
+        Ok(cwd) => cwd,
+        Err(_) => return ActiveWindow::NoRepo,
+    };
+
+    match find_repo_ancestor(&cwd) {
+        Some(path) => ActiveWindow::Repo(path),
+        None => ActiveWindow::NoRepo,
+    }
 }
 
 #[cfg(not(target_os = "linux"))]
-fn detect_from_active_window() -> Result<Option<String>, GitError> {
-    Ok(None)
+fn detect_from_active_window() -> ActiveWindow {
+    ActiveWindow::NoWindow
 }
 
 /// Collect the paths of every file that `git status` would report as changed
@@ -269,5 +301,29 @@ mod tests {
         dir.push(format!("parkplatzcoder_no_git_{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         assert!(find_repo_ancestor(&dir).is_none());
+    }
+
+    #[test]
+    fn resolve_detection_falls_back_only_without_an_active_window() {
+        resolve_detection(ActiveWindow::Repo("/tmp/known-repo".to_string()));
+
+        // An active window whose cwd is not in a repo must NOT fall back.
+        assert_eq!(resolve_detection(ActiveWindow::NoRepo), None);
+
+        // Without an active window, the last known repo is returned.
+        assert_eq!(
+            resolve_detection(ActiveWindow::NoWindow),
+            Some("/tmp/known-repo".to_string())
+        );
+
+        // A repo detected from the active window is returned and remembered.
+        assert_eq!(
+            resolve_detection(ActiveWindow::Repo("/tmp/other-repo".to_string())),
+            Some("/tmp/other-repo".to_string())
+        );
+        assert_eq!(
+            resolve_detection(ActiveWindow::NoWindow),
+            Some("/tmp/other-repo".to_string())
+        );
     }
 }

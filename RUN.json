@@ -6,7 +6,7 @@
       "dir": "src-tauri",
       "stack": "rust",
       "kind": "cli",
-      "install": [["cargo", "build"]],
+      "install": [["cargo", "test"], ["cargo", "build"]],
       "build": [["cargo", "build", "--release"]],
       "start": ["cargo", "run"]
     }
