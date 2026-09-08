@@ -3,12 +3,9 @@
 
   function getInput() {
     return (
-      document.getElementById("text") ||
       document.getElementById("note-input") ||
-      document.getElementById("note") ||
-      document.querySelector('input[type="text"]') ||
-      document.querySelector("textarea") ||
-      document.querySelector("input")
+      document.getElementById("text") ||
+      document.getElementById("note")
     );
   }
 
