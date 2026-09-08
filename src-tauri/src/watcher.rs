@@ -7,6 +7,7 @@ use notify::{RecursiveMode, Watcher};
 use tauri::{AppHandle, Runtime};
 
 use crate::git_context;
+use crate::model::Note;
 use crate::notifier;
 use crate::storage;
 
@@ -95,17 +96,35 @@ fn refresh(watcher: &mut notify::RecommendedWatcher, watched: &mut HashMap<PathB
 }
 
 fn handle_head_change<R: Runtime>(app: &AppHandle<R>, repo: &str) {
-    let branch = match git_context::read_branch(repo) {
-        Ok(branch) => branch,
-        Err(_) => return,
-    };
+    let _ = handle_head_change_with(
+        repo,
+        |r| git_context::read_branch(r).ok(),
+        |r, b| storage::latest_note_for_branch(r, b).ok().flatten(),
+        |note| {
+            let _ = notifier::notify_branch_note(app, note);
+        },
+    );
+}
 
-    let note = match storage::latest_note_for_branch(repo, &branch) {
-        Ok(Some(note)) => note,
-        _ => return,
+fn handle_head_change_with<RB, NL, N>(
+    repo: &str,
+    read_branch: RB,
+    latest_note: NL,
+    notify: N,
+) -> bool
+where
+    RB: FnOnce(&str) -> Option<String>,
+    NL: FnOnce(&str, &str) -> Option<Note>,
+    N: FnOnce(&Note),
+{
+    let Some(branch) = read_branch(repo) else {
+        return false;
     };
-
-    let _ = notifier::notify_branch_note(app, &note);
+    let Some(note) = latest_note(repo, &branch) else {
+        return false;
+    };
+    notify(&note);
+    true
 }
 
 fn head_path(repo: &str) -> PathBuf {
@@ -115,6 +134,19 @@ fn head_path(repo: &str) -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn test_note(text: &str) -> crate::model::Note {
+        crate::model::Note {
+            id: 1,
+            text: text.to_string(),
+            repo_path: "/repo".to_string(),
+            branch: "feature/x".to_string(),
+            commit_hash: "abc123".to_string(),
+            changed_files: vec![],
+            created_at: "2026-09-08T00:00:00Z".to_string(),
+            done: false,
+        }
+    }
 
     #[test]
     fn head_path_appends_git_head() {
@@ -133,5 +165,47 @@ mod tests {
     fn watcher_error_display_contains_message() {
         let err = WatcherError::Init("boom".to_string());
         assert!(err.to_string().contains("boom"));
+    }
+
+    #[test]
+    fn head_change_with_note_notifies_with_note_text() {
+        let mut received: Option<String> = None;
+        let sent = handle_head_change_with(
+            "/repo",
+            |_| Some("feature/x".to_string()),
+            |_, branch| {
+                assert_eq!(branch, "feature/x");
+                Some(test_note("neuester zettel"))
+            },
+            |note| received = Some(note.text.clone()),
+        );
+        assert!(sent);
+        assert_eq!(received.as_deref(), Some("neuester zettel"));
+    }
+
+    #[test]
+    fn head_change_without_note_does_not_notify() {
+        let mut notified = false;
+        let sent = handle_head_change_with(
+            "/repo",
+            |_| Some("feature/x".to_string()),
+            |_, _| None,
+            |_| notified = true,
+        );
+        assert!(!sent);
+        assert!(!notified);
+    }
+
+    #[test]
+    fn head_change_without_branch_does_not_notify() {
+        let mut notified = false;
+        let sent = handle_head_change_with(
+            "/repo",
+            |_| None,
+            |_, _| Some(test_note("x")),
+            |_| notified = true,
+        );
+        assert!(!sent);
+        assert!(!notified);
     }
 }
