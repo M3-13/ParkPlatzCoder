@@ -7,9 +7,17 @@
     <link rel="stylesheet" href="list.css" />
   </head>
   <body>
-    <main class="list-shell">
+    <header class="list-header">
       <h1 class="list-title">Zettel</h1>
-      <p class="empty-state">Keine Zettel</p>
+      <input
+        id="search-input"
+        type="search"
+        autocomplete="off"
+        placeholder="Zettel durchsuchen …"
+      />
+    </header>
+    <main id="note-list" class="note-list" aria-live="polite">
+      <p class="empty-state">Lade Zettel …</p>
     </main>
     <script src="list.js"></script>
   </body>
