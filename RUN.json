@@ -8,6 +8,7 @@
       "kind": "cli",
       "install": [["cargo", "build"]],
       "build": [["cargo", "build", "--release"]],
+      "test": [["cargo", "test"]],
       "start": ["cargo", "run"]
     }
   ]
