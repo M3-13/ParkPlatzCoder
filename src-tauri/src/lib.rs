@@ -86,6 +86,13 @@ pub fn run() {
             commands::export_json,
         ])
         .setup(|app| {
+            // Create the SQLite database (0600, idempotent) at startup so a
+            // saved note survives a restart. The error here never carries note
+            // text, repo paths, branch names or commit hashes.
+            if let Err(e) = storage::init_db() {
+                log::warn!("failed to initialize note storage: {}", e);
+            }
+
             let icon = Image::from_bytes(include_bytes!("../icons/icon.png"))?;
 
             let open_input =
