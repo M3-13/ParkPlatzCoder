@@ -86,6 +86,14 @@ pub fn run() {
             commands::export_json,
         ])
         .setup(|app| {
+            // Initialize the SQLite storage on startup so `notes.db` exists
+            // (0600 on Unix) before any command touches it. StorageError never
+            // carries note contents, repo paths, branch names or commit hashes,
+            // so this log line is safe (AC-14).
+            if let Err(e) = storage::init_db() {
+                log::warn!("storage initialization failed: {}", e);
+            }
+
             let icon = Image::from_bytes(include_bytes!("../icons/icon.png"))?;
 
             let open_input =
