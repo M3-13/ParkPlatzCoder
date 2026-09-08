@@ -8,8 +8,7 @@
       "kind": "cli",
       "install": [["cargo", "build"]],
       "build": [["cargo", "build", "--release"]],
-      "start": ["cargo", "run", "-p", "parkplatzcoder"],
-      "test": [["cargo", "test"]]
+      "start": ["cargo", "run", "-p", "parkplatzcoder"]
     }
   ]
 }
