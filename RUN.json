@@ -3,7 +3,7 @@
   "services": [
     {
       "name": "parkplatzcoder",
-      "dir": "src-tauri",
+      "dir": ".",
       "stack": "rust",
       "kind": "cli",
       "install": [["cargo", "test"], ["cargo", "build"]],
