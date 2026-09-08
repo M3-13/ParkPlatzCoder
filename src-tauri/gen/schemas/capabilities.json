@@ -1,0 +1,1 @@
+{"default":{"identifier":"default","description":"Standard capability for ParkPlatzCoder windows","local":true,"windows":["input","list"],"permissions":["core:default","global-shortcut:default","notification:default"]}}
