@@ -1,0 +1,22 @@
+# office-crew-ci-gates: strict-v10
+# Auto-generated for Rust projects v1 (GitHub Actions).
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cargo build
+      - run: cargo test
+  lint:
+    runs-on: ubuntu-latest
+    continue-on-error: true  # style is a warning, not a merge blocker
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup component add rustfmt clippy
+      - run: cargo fmt --check || true
+      - run: cargo clippy --all-targets -- -D warnings || true
