@@ -30,15 +30,22 @@ fn list_js_renders_text_via_text_content() {
     );
 }
 
-/// The list script must call exactly the sprint commands it is promised.
+/// The list script must invoke the sprint commands with the exact names and
+/// argument keys the Rust commands declare. The argument names are part of the
+/// shared interface: a mismatch (`{ text }` vs `{ query }`) is a silent break.
 #[test]
 fn list_js_wires_the_sprint_commands() {
     let src = read_list_js();
-    for cmd in ["get_notes", "search_notes", "toggle_done", "remove_note"] {
+    for call in [
+        "invoke(\"get_notes\")",
+        "invoke(\"search_notes\", { query: query })",
+        "invoke(\"toggle_done\", { id: id })",
+        "invoke(\"remove_note\", { id: id })",
+    ] {
         assert!(
-            src.contains(cmd),
-            "ui/list.js must invoke the `{}` command",
-            cmd
+            src.contains(call),
+            "ui/list.js must call exactly `{}`",
+            call
         );
     }
 }
